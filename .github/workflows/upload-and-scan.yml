@@ -1,0 +1,42 @@
+name: Veracode Static Scan
+on: workflow_dispatch
+    
+jobs:
+  static_analysis:
+    name: Static Analysis
+    runs-on: ubuntu-latest
+    
+    env:
+        VERACODE_API_KEY_ID: ${{ secrets.VERACODE_API_ID }}
+        VERACODE_API_KEY_SECRET: ${{ secrets.VERACODE_API_KEY }}
+    
+    steps:
+      - name: Check out main branch
+        uses: actions/checkout@v2
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+            go-version: '>=1.17.0'
+
+      - name: Download CLI
+        uses: wei/curl@master
+        with:
+          args: -fsS https://tools.veracode.com/veracode-cli/install | sh
+          
+      - name: Package Application
+        run: ./veracode package -s . -o veracode-artifact -a trust
+          
+      - name: Veracode Upload And Scan
+        uses: veracode/veracode-uploadandscan-action@0.2.6
+        with:
+          appname: 'Go-Demo'
+          createprofile: false
+          filepath: 'veracode-artifact'
+          vid: '${{ secrets.VERACODE_API_ID }}'
+          vkey: '${{ secrets.VERACODE_API_KEY }}'
+          createsandbox: 'false'
+          deleteincompletescan: 1
+
+      - name: Veracode CLI Static Scan
+        run: ./veracode static scan veracode-artifact/*
